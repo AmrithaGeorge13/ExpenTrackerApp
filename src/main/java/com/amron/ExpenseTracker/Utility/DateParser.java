@@ -12,6 +12,7 @@ public class DateParser {
 
     static {
         DATE_FORMATTERS.add(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        DATE_FORMATTERS.add(DateTimeFormatter.ofPattern("dd/MM/yy"));
         DATE_FORMATTERS.add(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
         DATE_FORMATTERS.add(DateTimeFormatter.ofPattern("dd-MMM-yyyy"));
         DATE_FORMATTERS.add(DateTimeFormatter.ofPattern("yyyy-MM-dd"));

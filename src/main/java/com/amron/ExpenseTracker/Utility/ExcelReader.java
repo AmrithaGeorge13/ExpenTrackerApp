@@ -5,6 +5,7 @@ import com.amron.ExpenseTracker.Model.Categories;
 import com.amron.ExpenseTracker.Model.DailyExpense;
 import com.amron.ExpenseTracker.Service.BankStatementConfigService;
 import com.amron.ExpenseTracker.Service.OllamaCategorizationService;
+import com.amron.ExpenseTracker.Service.TransactionCategorizerService;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.*;
@@ -37,8 +38,8 @@ public class ExcelReader {
     }
 
     private final OllamaCategorizationService categorizationService;
+    private final TransactionCategorizerService transactionCategorizerService;
     Logger logger = Logger.getLogger(ExcelReader.class.getName());
-
 
     private static String getCellValue(Cell cell) {
         if (cell == null) {
@@ -65,22 +66,18 @@ public class ExcelReader {
     }
 
     // Utility method to check if the row is invalid or incomplete
-    private static boolean isRowInvalid(Row row, int expectedColumnCount) {
+    private static boolean isRowInvalid(Row row, int startCol, int expectedColumnCount) {
         if (row == null) {
             return true; // Row is null
         }
 
         // Check if critical cells (e.g., first cell) are empty
-        Cell firstCell = row.getCell(0);
+        Cell firstCell = row.getCell(startCol);
         return firstCell == null || firstCell.getCellType() == CellType.BLANK;
     }
 
     private static int getIndex(String[] columns, String... targets) {
-        OptionalInt indexOpt = IntStream.range(0, columns.length)
-                .filter(i -> Arrays.stream(targets)
-                        .anyMatch(target -> target.equalsIgnoreCase(columns[i]))
-                )
-                .findFirst();
+        OptionalInt indexOpt = IntStream.range(0, columns.length).filter(i -> Arrays.stream(targets).anyMatch(target -> target.equalsIgnoreCase(columns[i]))).findFirst();
 
         if (indexOpt.isPresent()) {
             return indexOpt.getAsInt();
@@ -88,6 +85,20 @@ public class ExcelReader {
             System.out.println("Column not found");
             return -1;
         }
+    }
+
+    public String getTransactionType(String debitValue, String creditValue) {
+        String transactionType = "";
+        boolean hasDebit = !debitValue.isEmpty() && Double.parseDouble(debitValue) > 0;
+        boolean hasCredit = !creditValue.isEmpty() && Double.parseDouble(creditValue) > 0;
+        if (hasDebit && !hasCredit) {
+            return "DEBIT";
+        } else if (hasCredit && !hasDebit) {
+            return "CREDIT";
+        } else if (!hasDebit && !hasCredit) {
+            throw new IllegalArgumentException("Invalid row: both debit and credit fields are zero or empty");
+        }
+        return transactionType;
     }
 
     public List<DailyExpense> readDailyExpensesFromExcel(String folderPath, BankStatementConfigService bankStatementConfigService, List<Categories> allCategories) throws IOException {
@@ -99,11 +110,9 @@ public class ExcelReader {
                 String fileName = file.getName();
                 String bankName = getBankName(fileName);
                 String userName = fileName.split("_")[0];
-                System.out.println("************************************");
                 System.out.println(fileName);
                 BankStatementConfig bankStatementConfig = bankStatementConfigService.getBankStatementConfig(bankName);
                 dailyExpenses.addAll(readDailyExpensesForEachExcel(new File(file.getAbsolutePath()), bankStatementConfig, userName, bankName));
-                System.out.println("************************************");
             }
         }
         return dailyExpenses;
@@ -149,15 +158,14 @@ public class ExcelReader {
             if (row.getPhysicalNumberOfCells() < numberOfColumns) {
                 break;
             }
-            if (isRowInvalid(row, numberOfColumns)) {
+            if (isRowInvalid(row, startCol, numberOfColumns)) {
                 continue;
             }
             // Get the cell index for the date column and retrieve the date value
             int dateColumnIndex = getDateColumNo(columns) + (startCol - 1);
             Cell dateCell = row.getCell(dateColumnIndex);
             String dateValue = getCellValue(dateCell);
-            if (dateValue.trim().isEmpty())
-                break;
+            if (dateValue.trim().isEmpty()) break;
             LocalDate transactionDate = DateParser.parseDate(dateValue);
 
             // Get the cell index for the categories column and retrieve the category value
@@ -169,19 +177,19 @@ public class ExcelReader {
             int debitColumnIndex = getDebitColumnNo(columns) + (startCol - 1);
             int creditColumnIndex = getCreditColumnNo(columns) + (startCol - 1);
 
-            String debitValue = getCellValue(row.getCell(debitColumnIndex)).trim();
-            String creditValue = getCellValue(row.getCell(creditColumnIndex)).trim();
-
+            String debitValue = getCellValue(row.getCell(debitColumnIndex)).trim().replaceAll(",", "");
+            String creditValue = getCellValue(row.getCell(creditColumnIndex)).trim().replaceAll(",", "");
+            String transactionType = getTransactionType(debitValue, creditValue);
             // Determine the actual amount based on whether the debit or credit value is present
             Double actualAmount = !debitValue.isEmpty() ? Double.valueOf(debitValue) : Double.valueOf(creditValue);
 
-            categorizationService.categorizeExpense(
-                    rawCategories,
-                    rawCategories
-            );
+            String categories = transactionCategorizerService.categorizeTransaction(rawCategories, transactionType);
+            System.out.println(dailyExpenses);
             DailyExpense dailyExpense = new DailyExpense();
+            dailyExpense.setTransactionType(transactionType);
             dailyExpense.setDate(transactionDate);
             dailyExpense.setRawCategories(rawCategories);
+            dailyExpense.setCategories(categories);
             dailyExpense.setActualAmount(actualAmount);
             dailyExpense.setWeekNum(deriveWeekNum(transactionDate));
             dailyExpense.setMonthYear(deriveMonthYear(transactionDate));
@@ -189,7 +197,6 @@ public class ExcelReader {
             dailyExpense.setQuarterYear(deriveQuaterYear(transactionDate));
             dailyExpenses.add(dailyExpense);
         }
-        System.out.println(dailyExpenses);
         return dailyExpenses;
     }
 
@@ -211,7 +218,8 @@ public class ExcelReader {
         String target1 = "Transaction Date";
         String target2 = "Tran Date";
         String target3 = "Txn Date";
-        return getIndex(columns, target1, target2, target3);
+        String target4 = "Date";
+        return getIndex(columns, target1, target2, target3, target4);
     }
 
     private int getCategoriesColumnNo(String[] columns) {
@@ -226,17 +234,20 @@ public class ExcelReader {
         String target1 = "CR";
         String target2 = "Deposit Amt.";
         String target3 = "Deposit Amount (INR )";
-        String taregt4 = "Deposit";
-        String taregt5 = "Credit";
-        return getIndex(columns, target1, target2, target3, taregt4, taregt5);
+        String target4 = "Deposit";
+        String target5 = "Credit";
+        String target6 = "Deposits";
+        return getIndex(columns, target1, target2, target3, target4, target5, target6);
     }
 
     private int getDebitColumnNo(String[] columns) {
         String target1 = "DR";
         String target2 = "Withdrawal Amt.";
         String target3 = "Withdrawal Amount (INR )";
-        String taregt4 = "Withdrawal";
-        String taregt5 = "Debit";
-        return getIndex(columns, target1, target2, target3, taregt4, taregt5);
+        String target4 = "Withdrawal";
+        String target5 = "Debit";
+        String target6 = "Withdrawals";
+        return getIndex(columns, target1, target2, target3, target4, target5, target6);
     }
+
 }

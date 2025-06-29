@@ -23,9 +23,9 @@ public class DailyExpenseService {
 
     public String importDailyExpensesFromExcel(String filePath) throws IOException {
         List<Categories> allCategories = categoriesService.getAllCategories();
-        List<DailyExpense> dailyExpenses = excelReader.readDailyExpensesFromExcel(filePath,bankStatementConfigService,allCategories);
+        List<DailyExpense> dailyExpenses = excelReader.readDailyExpensesFromExcel(filePath, bankStatementConfigService, allCategories);
         //TODO uncomment below line for saving to DB
-       // dailyExpenseRepository.saveAll(dailyExpenses);
+        dailyExpenseRepository.saveAll(dailyExpenses);
         return null;
     }
 
