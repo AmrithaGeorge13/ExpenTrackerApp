@@ -27,8 +27,7 @@ public class DateParser {
     public static LocalDate parseDate(String dateString) {
         for (DateTimeFormatter formatter : DATE_FORMATTERS) {
             try {
-                LocalDate date = LocalDate.parse(dateString, formatter);
-                return date;
+                return LocalDate.parse(dateString, formatter);
             } catch (DateTimeParseException e) {
                 // Continue to the next format
             }

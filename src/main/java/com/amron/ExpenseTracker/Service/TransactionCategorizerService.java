@@ -188,22 +188,12 @@ public class TransactionCategorizerService {
     }
 
     private String getCategoryForMerchant(String merchantName) {
-        switch (merchantName) {
-            case "SWIGGY":
-            case "ZOMATO":
-                return "Food & Dining";
-            case "UBER":
-            case "OLA":
-            case "RAPIDO":
-                return "Transportation";
-            case "BIGBASKET":
-            case "GROFERS":
-            case "BLINKIT":
-            case "DMART":
-                return "Groceries";
-            default:
-                return "Merchant Payment";
-        }
+        return switch (merchantName) {
+            case "SWIGGY", "ZOMATO" -> "Food & Dining";
+            case "UBER", "OLA", "RAPIDO" -> "Transportation";
+            case "BIGBASKET", "GROFERS", "BLINKIT", "DMART" -> "Groceries";
+            default -> "Merchant Payment";
+        };
     }
 
     private String extractMerchantName(String description) {
