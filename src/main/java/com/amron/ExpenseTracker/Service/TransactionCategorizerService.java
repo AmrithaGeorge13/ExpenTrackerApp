@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -15,36 +16,37 @@ public class TransactionCategorizerService {
 
     // Transaction type specific rules (highest priority)
     private static final List<TransactionTypeRule> TRANSACTION_TYPE_RULES = List.of(
-            new TransactionTypeRule("CREDIT", List.of("SALARY", "PAYROLL"), "Income"),
+            new TransactionTypeRule("CREDIT", List.of("SALARY", "PAYROLL", "HONEYWELL"), "Income"),
             new TransactionTypeRule("CREDIT", List.of("INTEREST", "DIVIDEND"), "Income"),
             new TransactionTypeRule("CREDIT", List.of("REFUND", "RVSL", "REVERSAL"), "Refund"),
-            new TransactionTypeRule("CREDIT", List.of("GROWW"), "Income"),
+            new TransactionTypeRule("CREDIT", List.of("GROWW", "GROWW-BSE.GROWWPAY", "GROWWSTOCKS", "GROWW-BSE.GROWWPAY", "GROWWSTOCKS"), "Income"),
             new TransactionTypeRule("DEBIT", List.of("LOAN EMI", "LOAN PAYMENT"), "Loan Payment"),
             new TransactionTypeRule("DEBIT", List.of("CREDIT CARD PAYMENT", "CC PAYMENT", "creditcard"), "Credit Card Payment"),
             new TransactionTypeRule("DEBIT", List.of("TAX", "GST"), "Tax Payment"),
             new TransactionTypeRule("DEBIT", List.of("INSURANCE PREMIUM"), "Insurance"),
-            new TransactionTypeRule("DEBT", List.of("DEBIT", "Investmen", "INVEST"), "Investment")
+            new TransactionTypeRule("DEBIT", List.of("Investmen", "INVEST", "GROWW", "GROWW-BSE.GROWWPAY", "GROWWSTOCKS", "ESMF0001119", "Emergency fun", "Investment"), "Investment")
     );
 
     // Priority-ordered list of rules (after transaction type rules)
     private static final List<CategoryRule> CATEGORY_RULES = List.of(
             // 1. Specific merchant exact matches
             new CategoryRule(List.of("NOBROKER TECHNOLOGIES"), "Miscellaneous"),
-            new CategoryRule(List.of("UBER INDIA SYSTEMS", "OLACABS", "RAPIDO"), "Transportation"),
+            new CategoryRule(List.of("UBER INDIA SYSTEMS", "OLACABS", "RAPIDO", "CAB"), "Transportation"),
             new CategoryRule(List.of("IRCTC"), "Travel"),
             new CategoryRule(List.of("IKEA INDIA PVT LTD"), "Shopping"),
             new CategoryRule(List.of("BOOKMYSHOW"), "Entertainment"),
-            new CategoryRule(List.of("BIGBASKET", "GROFERS", "BLINKIT", "SWIGGY INSTAMART", "BBNOW"), "Groceries"),
+            new CategoryRule(List.of("BIGBASKET", "GROFERS", "BLINKIT", "SWIGGY INSTAMART", "BBNOW", "ZOMATA"), "Groceries"),
             new CategoryRule(List.of("POPEYES", "MEGHANA FOODS"), "Food & Dining"),
             new CategoryRule(List.of("DMRC LIMITED"), "Transportation"),
             new CategoryRule(List.of("DECATHLON"), "Sports"),
-            new CategoryRule(List.of("AMAZON PAY"), "Shopping"),
+            new CategoryRule(List.of("AMAZON PAY", "SRIVENKATEAHWARAGRAM", "EKART"), "Shopping"),
             new CategoryRule(List.of("BUNDL TECHNOLOGIES", "SWIGGY"), "Food & Dining"),
             new CategoryRule(List.of("ANI TECHNOLOGIES"), "Transportation"), // Ola
             new CategoryRule(List.of("URBANCOMPANY"), "Personal Care"),
             new CategoryRule(List.of("CAREINSURANCE"), "Insurance"),
             new CategoryRule(List.of("THE MALANKARA ORT", "MOSC MEDICAL"), "Hospital Expense"),
-            new CategoryRule(List.of("RD INSTALLMENT", "INDMONEY", "ACH/Groww"), "Investment"),
+            new CategoryRule(List.of("RD INSTALLMENT", "INDMONEY", "ACH/GROWW"), "Investment"),
+            new CategoryRule(List.of("OPTIMUMNUTRITIO", "FITNESS"), "GYM"),
 
             // 2. POS transaction patterns
             new CategoryRule(List.of("POS/HPCL"), "Fuel"),
@@ -54,10 +56,10 @@ public class TransactionCategorizerService {
             new CategoryRule(List.of("POS/POPEYES"), "Food & Dining"),
 
             // 3. Transaction type patterns
-            new CategoryRule(List.of("ATM-CASH"), "ATM Withdrawal"),
-            new CategoryRule(List.of("MBBPAY", "AUTOBPAY", "BILPAY", "AIRTEL", "BROADBAND"), "Utilities"),
+            new CategoryRule(List.of("ATM-CASH", "DC INTL ATM W", "ATM W", "ATW"), "ATM Withdrawal"),
+            new CategoryRule(List.of("MBBPAY", "AUTOBPAY", "BILPAY", "BROADBAND", "AIRTEL PAYMENTS BANK"), "Utilities"),
             new CategoryRule(List.of("ECOM PUR"), "Shopping"),
-            new CategoryRule(List.of("MB FTB/DADDY"), "Transfer to Home"),
+            new CategoryRule(List.of("MB FTB/DADDY", "KUSUMAM JOHN"), "Transfer to Home"),
             new CategoryRule(List.of("UPI/P2M/ENGLISH.BMRC.PAYU"), "Transportation"),
 
             // 4. MCC code based categorization
@@ -76,8 +78,9 @@ public class TransactionCategorizerService {
             new CategoryRule(List.of("POS"), "Shopping"),
             new CategoryRule(List.of("ACH C"), "Dividend"),
             new CategoryRule(List.of("HARI PRASAD R"), "Rent"),
-            new CategoryRule(List.of("SHILPANJALI  H", "LAUNDRY"), "Housing"),
-            new CategoryRule(List.of("ORANGE HEALTH", "HEALTH", "PHARMAC", "PHARMACY"), "Hospital Expense")
+            new CategoryRule(List.of("SHILPANJALI  H", "LAUNDRY", "IRONING", "RAJESH   BOHARA"), "Housing"),
+            new CategoryRule(List.of("ORANGE HEALTH", "HEALTH", "PHARMAC", "PHARMACY"), "Hospital Expense"),
+            new CategoryRule(List.of("APPLAMP/BILLDESKPG.APPL", "APPLESERVICES.B", "PLAYSTORE", "SPOTIFY"), "Subscription")
     );
 
     // Merchant name patterns with flexible matching
@@ -99,9 +102,8 @@ public class TransactionCategorizerService {
             Map.entry(Pattern.compile(".*MALANKARA.*"), "Hospital Expense"),
             Map.entry(Pattern.compile(".*MEDICAL.*"), "Hospital Expense"),
             Map.entry(Pattern.compile(".*INSURANCE.*"), "Insurance"),
-            Map.entry(Pattern.compile(".*SALARY.*"), "Income"),
-            Map.entry(Pattern.compile(".*APPLAMP/billdeskpg.appl*."), "Subscription"),
-            Map.entry(Pattern.compile(".*appleservices.b*."), "Subscription")
+            Map.entry(Pattern.compile(".*SALARY.*"), "Income")
+
     );
 
     // Known miscellaneous patterns
@@ -114,28 +116,28 @@ public class TransactionCategorizerService {
             "BIGBASKET", "GROFERS", "BLINKIT", "DMART"
     );
 
+    private static final List<TransactionTypeRule> TRANFER_RULES = List.of(
+            new TransactionTypeRule("CREDIT", List.of("AMRITHA.GEORGE", "AMRITHA GEORGE", "AMRITHA", "RONY", "RONY PETER", "AMR.RON", "RONYMEP", "7012236240"), "Transfer In"),
+            new TransactionTypeRule("DEBIT", List.of("AMRITHA.GEORGE", "AMRITHA GEORGE", "AMRITHA", "RONY", "RONY PETER", "AMR.RON", "RONYMEP", "7012236240"), "Transfer Out")
+    );
+
     public String categorizeTransaction(String rawDescription, String transactionType) {
         if (StringUtils.isEmpty(rawDescription)) {
             return "Unknown";
         }
 
         String upperDesc = rawDescription.toUpperCase().trim();
-        String upperType = transactionType != null ? transactionType.toUpperCase() : "";
+        String upperTransactionType = transactionType != null ? transactionType.toUpperCase() : "";
 
         // 1. Check against transaction-type specific rules (highest priority)
         for (TransactionTypeRule rule : TRANSACTION_TYPE_RULES) {
-            if (upperType.equalsIgnoreCase(rule.transactionType)) {
+            if (upperTransactionType.equalsIgnoreCase(rule.transactionType)) {
                 for (String keyword : rule.keywords) {
                     if (upperDesc.contains(keyword.toUpperCase())) {
                         return rule.category;
                     }
                 }
             }
-        }
-
-        // 2. Skip known miscellaneous patterns
-        if (KNOWN_MISC_PATTERNS.stream().anyMatch(upperDesc::contains)) {
-            return "Miscellaneous";
         }
 
         // 3. Check against all keyword rules
@@ -172,18 +174,27 @@ public class TransactionCategorizerService {
                 return "Groceries";
             }
         }
-
-        // 5. Final fallback based on transaction type
-        if (upperType.equals("CREDIT")) {
-            return "Income";
-        }
         if (upperDesc.startsWith("POS/")) {
             return "Shopping";
         }
         if (upperDesc.startsWith("UPI/P2M/")) {
             return "Merchant Payment";
         }
-
+        Optional<TransactionTypeRule> transferRule = TRANFER_RULES.stream().filter(a -> a.transactionType.equalsIgnoreCase(transactionType)).findFirst();
+        if (transferRule.isPresent()) {
+            for (String keyword : transferRule.get().keywords) {
+                if (upperDesc.contains(keyword.toUpperCase())) {
+                    return transferRule.get().category;
+                }
+            }
+        }
+        // 5. Final fallback based on transaction type
+        if (upperTransactionType.equals("CREDIT")) {
+            return "Income";
+        }
+        if (KNOWN_MISC_PATTERNS.stream().anyMatch(upperDesc::contains)) {
+            return "CHARGES";
+        }
         return "Miscellaneous";
     }
 
