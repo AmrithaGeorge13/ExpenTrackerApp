@@ -184,6 +184,7 @@ public class ExcelReader {
             Double actualAmount = !debitValue.isEmpty() ? Double.valueOf(debitValue) : Double.valueOf(creditValue);
 
             String categories = transactionCategorizerService.categorizeTransaction(rawCategories, transactionType);
+            categories = overrideCategory(rawCategories, categories);
             System.out.println(dailyExpenses);
             DailyExpense dailyExpense = new DailyExpense();
             dailyExpense.setTransactionType(transactionType);
@@ -248,6 +249,15 @@ public class ExcelReader {
         String target5 = "Debit";
         String target6 = "Withdrawals";
         return getIndex(columns, target1, target2, target3, target4, target5, target6);
+    }
+
+    private String overrideCategory(String rawCategories, String category) {
+        if ("UPI-KRISHNAPRIYA  A-KRISHNAMOHANKP12-1@OKSBI-UBIN0934038-626327075512-PAYMENT FROM PHONE".equalsIgnoreCase(rawCategories) ||
+                "UPI-KRISHNAPRIYA A-KRISHNAMOHANKP12-3@OKICICI-UTIB0005145-105748832320-UPI".equalsIgnoreCase(rawCategories)) {
+
+            return "Travel";
+        }
+        return category;
     }
 
 }
