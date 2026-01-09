@@ -181,7 +181,7 @@ public class ExcelReader {
             String creditValue = getCellValue(row.getCell(creditColumnIndex)).trim().replaceAll(",", "");
             String transactionType = getTransactionType(debitValue, creditValue);
             // Determine the actual amount based on whether the debit or credit value is present
-            Double actualAmount = !debitValue.isEmpty() ? Double.valueOf(debitValue) : Double.valueOf(creditValue);
+            Double actualAmount = transactionType.equalsIgnoreCase("DEBIT") ? Double.valueOf(debitValue) : Double.valueOf(creditValue);
 
             String categories = transactionCategorizerService.categorizeTransaction(rawCategories, transactionType);
             categories = overrideCategory(rawCategories, categories);
@@ -228,7 +228,8 @@ public class ExcelReader {
         String target2 = "Transaction Remarks";
         String target3 = "Particulars";
         String taregt4 = "Narration";
-        return getIndex(columns, target1, target2, target3, taregt4);
+        String taregt5 = "Details";
+        return getIndex(columns, target1, target2, target3, taregt4, taregt5);
     }
 
     private int getCreditColumnNo(String[] columns) {
@@ -256,6 +257,10 @@ public class ExcelReader {
                 "UPI-KRISHNAPRIYA A-KRISHNAMOHANKP12-3@OKICICI-UTIB0005145-105748832320-UPI".equalsIgnoreCase(rawCategories)) {
 
             return "Travel";
+        }
+        if ("FN/SHP/Qnu4aAmcsfrO3S/FEDERAL BANK LTD_RAZORPAY/,1".equalsIgnoreCase(rawCategories)) {
+
+            return "Credit Card Payment";
         }
         return category;
     }
