@@ -112,6 +112,8 @@ public class TransactionCategorizerService {
             "TEST", "NULL", "CHRG", "ADJUSTMENT", "FEE"
     );
 
+    private static final Set<String> EXCLUDE_TRANSACTION_TYPE_RULES = Set.of("NEFT DR-SBIN0070159-RONY SBI-SANDOZ - MUM-HDFC");
+
     private static final Set<String> DIRECT_MERCHANT_MATCHES = Set.of(
             "SWIGGY", "ZOMATO", "UBER", "OLA", "RAPIDO",
             "BIGBASKET", "GROFERS", "BLINKIT", "DMART"
@@ -132,7 +134,8 @@ public class TransactionCategorizerService {
 
         // 1. Check against transaction-type specific rules (highest priority)
         for (TransactionTypeRule rule : TRANSACTION_TYPE_RULES) {
-            if (upperTransactionType.equalsIgnoreCase(rule.transactionType)) {
+            boolean isExcluded = EXCLUDE_TRANSACTION_TYPE_RULES.stream().anyMatch(upperDesc::startsWith);
+            if (upperTransactionType.equalsIgnoreCase(rule.transactionType) && !isExcluded) {
                 for (String keyword : rule.keywords) {
                     if (upperDesc.contains(keyword.toUpperCase())) {
                         return rule.category;
