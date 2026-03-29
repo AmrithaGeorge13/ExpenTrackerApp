@@ -4,11 +4,11 @@ package com.amron.ExpenseTracker.Model;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
-import org.springframework.data.annotation.Id;
 
 import java.time.LocalDate;
 
@@ -18,7 +18,6 @@ import java.time.LocalDate;
 @ToString
 @Table(name = "daily_expense")
 public class DailyExpense {
-    @jakarta.persistence.Id
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
@@ -27,8 +26,11 @@ public class DailyExpense {
     private String subCategories;
     private Double actualAmount;
     private String monthYear;
+    /** Salary/income credited on day >= 22 is attributed to the following month for reporting. */
+    private String reportingMonthYear;
     private String weekNum;
     private String account;
+    private boolean jointAccount;
     private String notes;
     private String quarterYear;
     private String budgetCategory;

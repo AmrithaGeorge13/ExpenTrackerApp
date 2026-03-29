@@ -78,6 +78,7 @@ public class TransactionCategorizerService {
             new CategoryRule(List.of("GROCER"), "Groceries"),
             new CategoryRule(List.of("SHOPPING"), "Shopping"),
             new CategoryRule(List.of("P2M", "EAW-"), "Merchant Payment"),
+            new CategoryRule(List.of("UPI/P2A/", "P2A/"), "Personal Transfer"),
             new CategoryRule(List.of("POS"), "Shopping"),
             new CategoryRule(List.of("HARI PRASAD R"), "Rent"),
             new CategoryRule(List.of("SHILPANJALI  H", "LAUNDRY", "IRONING", "RAJESH   BOHARA", "shilpanjaliredd", "REPAIR", "GUARENTED"), "Housing"),
@@ -145,10 +146,10 @@ public class TransactionCategorizerService {
             }
         }
 
-        // 3. Check against all keyword rules
+        // 3. Check against all keyword rules (apply to both DEBIT and CREDIT)
         for (CategoryRule rule : CATEGORY_RULES) {
             for (String keyword : rule.keywords) {
-                if (upperDesc.contains(keyword.toUpperCase()) && upperTransactionType.equals("DEBIT")) {
+                if (upperDesc.contains(keyword.toUpperCase())) {
                     return rule.category;
                 }
             }

@@ -185,7 +185,22 @@ public class ExcelReader {
 
             String categories = transactionCategorizerService.categorizeTransaction(rawCategories, transactionType);
             categories = overrideCategory(rawCategories, categories);
-            System.out.println(dailyExpenses);
+            // AI fallback: if rule-based returned Miscellaneous, ask Ollama for a better category
+            if ("Miscellaneous".equals(categories)) {
+                try {
+                    String aiCategory = categorizationService.categorizeExpense(rawCategories, rawCategories);
+                    if (aiCategory != null && !aiCategory.isBlank() && !"Miscellaneous".equals(aiCategory)) {
+                        categories = aiCategory;
+                    }
+                } catch (Exception e) {
+                    logger.warning("Ollama fallback failed for: " + rawCategories + " - " + e.getMessage());
+                }
+            }
+
+            boolean isJoint = userName.equalsIgnoreCase("amron");
+            String monthYear = deriveMonthYear(transactionDate);
+            String reportingMonthYear = deriveReportingMonthYear(transactionDate, categories, transactionType);
+
             DailyExpense dailyExpense = new DailyExpense();
             dailyExpense.setTransactionType(transactionType);
             dailyExpense.setDate(transactionDate);
@@ -193,8 +208,10 @@ public class ExcelReader {
             dailyExpense.setCategories(categories);
             dailyExpense.setActualAmount(actualAmount);
             dailyExpense.setWeekNum(deriveWeekNum(transactionDate));
-            dailyExpense.setMonthYear(deriveMonthYear(transactionDate));
+            dailyExpense.setMonthYear(monthYear);
+            dailyExpense.setReportingMonthYear(reportingMonthYear);
             dailyExpense.setAccount(userName + " " + bankName);
+            dailyExpense.setJointAccount(isJoint);
             dailyExpense.setQuarterYear(deriveQuaterYear(transactionDate));
             dailyExpenses.add(dailyExpense);
         }
@@ -208,6 +225,20 @@ public class ExcelReader {
 
     private String deriveMonthYear(LocalDate transactionDate) {
         return transactionDate.getMonth() + " " + transactionDate.getYear();
+    }
+
+    /**
+     * Salaries are credited in the last week of the previous month (day >= 22).
+     * Those Income credits are attributed to the following month for reporting.
+     */
+    private String deriveReportingMonthYear(LocalDate date, String category, String transactionType) {
+        if ("CREDIT".equalsIgnoreCase(transactionType)
+                && "Income".equals(category)
+                && date.getDayOfMonth() >= 22) {
+            LocalDate nextMonth = date.plusMonths(1).withDayOfMonth(1);
+            return nextMonth.getMonth() + " " + nextMonth.getYear();
+        }
+        return deriveMonthYear(date);
     }
 
     private String deriveWeekNum(LocalDate transactionDate) {
